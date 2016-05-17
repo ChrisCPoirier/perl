@@ -9,12 +9,11 @@ sub quickSort {
   my $temp = 0.0;
   if ( $pivot - $wall > 0 ) {
     $origin = $wall;
-    foreach my $cur ($origin..$pivot) {
-      #if(ord($$arr[$cur]) < ord($$arr[$pivot]) || $cur == $pivot) {
+    foreach my $cur ($origin..$pivot) {      
       if($$arr[$cur] < $$arr[$pivot] || $cur == $pivot) {
         $temp = $$arr[$cur];
-        ${$arr}[$cur] = $$arr[$wall];
-        ${$arr}[$wall] = $temp;
+        $$arr[$cur] = $$arr[$wall];
+        $$arr[$wall] = $temp;
         unless ($cur == $pivot) {
           $wall += 1;
         }

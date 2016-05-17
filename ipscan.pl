@@ -4,20 +4,17 @@ use strict;
 use warnings;
 use Net::Ping;
 use POSIX qw(strftime);
-#TODO: Bring back to auto determine number of threads
-#use Sys::Info;
-#use Sys::Info::Constants qw( :device_cpu );
 
 sub scan {
   #TODO: make this a prompt for user input if not suplied
-  my ($ip_and_mask, $cores) = @_;
+  my ($ip_and_mask, $threads) = @_;
+  #TODO: Add regular expression to find and warn on badly formatted ip/mask strings
+  die "badly formatted ip/subnet. must be in x.x.x.x/x format." unless $ip_and_mask =~ /(\d{1,3}\.){3}\d{1,3}\/(8|16|24|32)/;
+
   my @ipaddresses = generate_ips($ip_and_mask);
 
-
-  #TODO: Bring back to auto detect threads
-  #my $cores = get_cpu_cores();
-  my $span = @ipaddresses / $cores;
-  foreach my $counter (0..$cores-1) {
+  my $span = @ipaddresses / $threads;
+  foreach my $counter (0..$threads-1) {
     my $pid = fork();
     #could not create child
     die if not defined $pid;
@@ -32,11 +29,14 @@ sub scan {
        exit;
     }
   }
+
   #wait for threads to finish, need amount of waits equal to amount of active
-  #cores
-  for (1 .. $cores) {
-   my $finished = wait();
-}
+  for (1 .. $threads) {
+    my $finished = wait();
+  }
+  #TODO: change result to multi part array.
+  #       success and non-success arrays.
+  #       Somehow receive return data from forks
   print "all finished!!!";
 }
 
@@ -58,7 +58,6 @@ sub generate_ips {
   my $subnets = "";
   my $ipmask = "";
 
-  #TODO: Add regular expression to find and warn on badly formatted ip/mask strings
   if(index($subnet_mask,"/")) {
     $subnets = substr $subnet_mask,index($subnet_mask,"/")+1;
     $ipmask =  substr $subnet_mask,0,index($subnet_mask,"/");
@@ -93,7 +92,7 @@ sub generate_parts {
 }
 
 my $Start = time();
-scan("192.168.0.0/16",8);
+scan("192.168.0.0/24",10);
 
 my $End = time();
 my $Diff = $End - $Start;
@@ -102,11 +101,3 @@ $End = strftime "%H:%M:%S", localtime($End);
 print "Start ".$Start."\n";
 print "End ".$End."\n";
 print "Diff ".$Diff."\n";
-
-#TODO: Bring back to auto determine number of threads
-#sub get_cpu_cores {
-#  my $info = Sys::Info->new;
-#  my $cpu  = $info->device( CPU => %options );
-#
-#  return $cpu->count || 1;
-#}
