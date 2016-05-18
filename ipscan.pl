@@ -9,7 +9,7 @@ sub scan {
   #TODO: make this a prompt for user input if not suplied
   my ($ip_and_mask, $threads) = @_;
   #TODO: Add regular expression to find and warn on badly formatted ip/mask strings
-  die "badly formatted ip/subnet. must be in x.x.x.x/x format." unless $ip_and_mask =~ /(\d{1,3}\.){3}\d{1,3}\/(8|16|24|32)/;
+  die "badly formatted ip/subnet. must be in x.x.x.x/x form " unless $ip_and_mask =~ /(\d{1,3}\.){3}\d{1,3}\/(8|16|24|32)/;
 
   my @ipaddresses = generate_ips($ip_and_mask);
 
@@ -23,8 +23,10 @@ sub scan {
        #inside child
        my $begin = ($span*$counter);
        my $end = $begin + $span;
+       my $result;
        for my $ipaddress (@ipaddresses[$begin..$end]) {
-           pingip($ipaddress);
+           $result = pingip($ipaddress);
+           print $result;
        }
        exit;
     }
@@ -42,11 +44,12 @@ sub scan {
 
 sub pingip {
   my ($host) = @_;
+  $host //= "";
   my $p = Net::Ping->new("tcp",.10);
   if ($p->ping($host)) {
-    print "$host is alive.\n"
+    return "$host is alive.\n"
   } else {
-    print "$host cannot be reached.\n"
+    return "$host cannot be reached.\n"
   }
 
   $p->close();
