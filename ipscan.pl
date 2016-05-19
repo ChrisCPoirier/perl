@@ -1,89 +1,176 @@
 #!/usr/bin/perl
-
+=head1 NAME
+ipscan
+=head1 SYNOPSIS
+    call ipscan :: scan(xx.xx.xx.xx/xx,[1])
+    to scan a all ips on a particular subnet using x amount of threads
+=cut
 use strict;
 use warnings;
 use Net::Ping;
+use forks;
+use forks::shared;
 use POSIX qw(strftime);
 
-sub scan {
-  #TODO: make this a prompt for user input if not suplied
-  my ($ip_and_mask, $threads) = @_;
-  #TODO: Add regular expression to find and warn on badly formatted ip/mask strings
-  die "badly formatted ip/subnet. must be in x.x.x.x/x form " unless $ip_and_mask =~ /(\d{1,3}\.){3}\d{1,3}\/(8|16|24|32)/;
+=item scan()
 
+This is function receives an ipaddress/mask with an optional thread count.
+It then creates a list of every IP address on that subnet
+and returns a list of Good Pings and Bad Pings.
+
+Input:  [$ip_and_mask], [$threds]
+
+Output: { @good, @bad }
+
+Input:
+        $ip_and_mask - ip and mask formated as 192.168.0.10/24
+        $threads - optional paramter to specifiy number of threads to use
+
+Output:
+        Reference to two arrays
+            @good - list of successfull pings
+            @bad - list of unsuccessful pings
+
+=cut
+
+sub scan {
+  my ($ip_and_mask, $threadCount) = @_;
+  $threadCount //= 1;
+
+  #if no IP specified, the process will prompt
+  if (not defined($ip_and_mask)) {
+    print "Enter an ip address/mask formated as xx.xx.xx.xx/xx input:\n";
+    $ip_and_mask = <STDIN>;
+    chomp $ip_and_mask;
+  }
+
+  if($ip_and_mask =~ /(^\/)/) {
+    $ip_and_mask .= "/0";
+  }
+
+  #if IP/mask is not formated properly warn user and die
+  die "badly formatted ip/subnet. must be in x.x.x.x/x form "
+    unless $ip_and_mask =~ /(\d{1,3}\.){3}\d{1,3}\/(8|16|24|32)/;
+
+  #generate list of ip addresses
   my @ipaddresses = generate_ips($ip_and_mask);
 
-  my $span = @ipaddresses / $threads;
-  foreach my $counter (0..$threads-1) {
-    my $pid = fork();
-    #could not create child
-    die if not defined $pid;
-    #if not $pid then we know we are not in child
-    if (not $pid) {
-       #inside child
+  my $span = @ipaddresses / $threadCount;
+  my @threadList;
+
+  foreach my $counter (0..$threadCount-1) {
+    #generate thread and push refrence on stack
+    push @threadList, threads->create( sub {
        my $begin = ($span*$counter);
        my $end = $begin + $span;
-       my $result;
+       my (@good,@bad);
        for my $ipaddress (@ipaddresses[$begin..$end]) {
-           $result = pingip($ipaddress);
-           print $result;
+           my ($ip, $message) = pingip($ipaddress);
+           if ( $message =~ /is alive/ ) {
+             push @good, $ip;
+           } else {
+             push @bad, $ip;
+           }
        }
-       exit;
-    }
+      return (\@good, \@bad);
+    });
   }
 
   #wait for threads to finish, need amount of waits equal to amount of active
-  for (1 .. $threads) {
-    my $finished = wait();
+  my @finalgood;
+  my @finalbad;
+  for my $thread (@threadList) {
+      my ($good, $bad) = $thread->join();
+      push @finalgood, @$good;
+      push @finalbad, @$bad;
   }
-  #TODO: change result to multi part array.
-  #       success and non-success arrays.
-  #       Somehow receive return data from forks
-  print "all finished!!!";
+  return (\@finalgood, \@finalbad);
 }
+
+=item pingip()
+
+This is function pings a provided ip address with a 10th of a second wait.
+
+Input:  $host
+
+Output: { $host, $message }
+
+Input:
+        $host - ip address to ping
+
+Output:
+        Reference to two arrays
+            $host - the ip address that was pinged
+            $message - the message from that ping request
+
+=cut
 
 sub pingip {
   my ($host) = @_;
   $host //= "";
   my $p = Net::Ping->new("tcp",.10);
   if ($p->ping($host)) {
-    return "$host is alive.\n"
+    return ($host,"is alive")
   } else {
-    return "$host cannot be reached.\n"
+    return ($host, "cannot be reached")
   }
 
   $p->close();
 }
 
+=item generate_ips()
+
+This funcion generates a list of ipaddresses from ip/subnet
+
+Input:  $ipAndSubnet
+
+Output: { @ipaddresses }
+
+Input:
+        $ipAndSubnet - ip address and subnet mask
+
+Output:
+        Returns list of ips as array
+            @ipaddresses - the ip address that were generated
+
+=cut
+
 sub generate_ips {
-  my ($subnet_mask) = @_;
-  my @result = ();
-  my $subnets = "";
-  my $ipmask = "";
-
-  if(index($subnet_mask,"/")) {
-    $subnets = substr $subnet_mask,index($subnet_mask,"/")+1;
-    $ipmask =  substr $subnet_mask,0,index($subnet_mask,"/");
-  } else {
-    $subnets = 0;
-    $ipmask =  $subnet_mask;
-  }
-
-  my @ipparts = split(/[.\n]/,$ipmask);
-  push @result, generate_parts(\@ipparts,1,$subnets,'');
-
-  return @result;
+  my ($ipAndSubnet) = @_;
+  $ipAndSubnet =~ /([\d\.]+(?=\/?))(?:\/(\d\d))?/;
+  my @ipparts = split(/[.]/,$1);
+  return generate_parts(\@ipparts,1,$2,'');
 }
+
+=item generate_parts()
+
+This functions generates the parts to the ipaddresses recursively.
+
+Input:  $ip,$index,$subnet,$part
+
+Output: { @lresult }
+
+Input:
+        $ip - the list of ip parts from the original passed in ip
+        $index - what level deep are we
+        $subnet - the subnet mask rule to adhere to
+        $part - the piece of ip to tack onto
+
+Output:
+        Returns all ip addresses recursively
+            @lresult - the ip address that were generated
+
+=cut
 
 sub generate_parts {
   my ($ip,$index,$subnet,$part) = @_;
+  my @lresult;
   if($index > 4) {
     return $part;
   }
   unless($part eq "") {
     $part .= ".";
   }
-  my @lresult = ();
   if(8*$index <= $subnet ) {
     push @lresult, generate_parts($ip,$index+1,$subnet,$part.$$ip[$index-1]);
   } else {
@@ -93,14 +180,3 @@ sub generate_parts {
   }
   return @lresult;
 }
-
-my $Start = time();
-scan("192.168.0.0/24",10);
-
-my $End = time();
-my $Diff = $End - $Start;
-$Start = strftime "%H:%M:%S", localtime($Start);
-$End = strftime "%H:%M:%S", localtime($End);
-print "Start ".$Start."\n";
-print "End ".$End."\n";
-print "Diff ".$Diff."\n";
