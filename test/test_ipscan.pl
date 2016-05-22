@@ -1,23 +1,32 @@
 #!/usr/bin/perl
 use strict;
-use warnings;
+#use warnings;
 use v5.10;
 require 'ipscan.pl';
 use Test::More;
+use POSIX qw(strftime);
 
-#Example
-#my @array = (1,2,3,4,5,6,7,8,9,10);
-#my @expected = @array;
-#my $p = @array;
-#quickSort(\@array,0,$p-1);
+#Tests for sub->scan
+my ($good, $bad) = scan("192.168.0.0/24",10);
+ok( "192.168.0.1" ~~ @$good && "192.168.0.255" ~~ @$bad,
+  "test scan: may fail if ip/subnets are different");
 
-#ok(@array eq @expected,"already sorted array");
+#tests for pingip
+ok(pingip("localhost") eq 1,"ping local host");
 
-#TODO: Create Tests for sub->scan
-#TODO: create tests for pingip
-#TODO: Create test for generate_ips
-#TODO: Create test for generate_parts
+#tests for generate_ips, proves generate parts in the context we need.
+my @testarray = ("192.168.0.1");
+ok(generate_ips("192.168.0.1/32") eq @testarray,"generate ips:simple");
 
+@testarray = ("192.168.0.0","192.168.0.1",
+  "192.168.0.2","192.168.0.3","192.168.0.4","192.168.0.5");
+my @resultarray = generate_ips("192.168.0.1/24");
+ok(@resultarray[0..5] ~~ @testarray &&
+  @resultarray == 256,"generate ips:complex");
+
+
+
+=comment
 my $Start = time();
 my ($good, $bad) = scan("192.168.0.0/24",10);
 
@@ -33,7 +42,7 @@ $End = strftime "%H:%M:%S", localtime($End);
 print "Start ".$Start."\n";
 print "End ".$End."\n";
 print "Diff ".$Diff."\n";
-
+=cut
 
 
 done_testing();

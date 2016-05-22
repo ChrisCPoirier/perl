@@ -14,6 +14,9 @@ sub quickSort {
         unless ($cur == $pivot) {
           $wall += 1;
         }
+
+
+        adaasc
       }
     }
     if ($wall - 1 - $origin >0) {

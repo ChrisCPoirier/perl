@@ -2,15 +2,14 @@
 =head1 NAME
 ipscan
 =head1 SYNOPSIS
-    call ipscan :: scan(xx.xx.xx.xx/xx,[1])
-    to scan a all ips on a particular subnet using x amount of threads
+    call ipscan :: scan(xx.xx.xx.xx/xx,[z])
+    to scan a all ips on a particular ip/subnet(x) using amount of threads(z)
 =cut
 use strict;
 use warnings;
 use Net::Ping;
 use forks;
 use forks::shared;
-use POSIX qw(strftime);
 
 =item scan()
 
@@ -65,12 +64,7 @@ sub scan {
        my $end = $begin + $span;
        my (@good,@bad);
        for my $ipaddress (@ipaddresses[$begin..$end]) {
-           my ($ip, $message) = pingip($ipaddress);
-           if ( $message =~ /is alive/ ) {
-             push @good, $ip;
-           } else {
-             push @bad, $ip;
-           }
+         pingip($ipaddress) ? push @good, $ipaddress : push @bad, $ipaddress;
        }
       return (\@good, \@bad);
     });
@@ -109,13 +103,7 @@ sub pingip {
   my ($host) = @_;
   $host //= "";
   my $p = Net::Ping->new("tcp",.10);
-  if ($p->ping($host)) {
-    return ($host,"is alive")
-  } else {
-    return ($host, "cannot be reached")
-  }
-
-  $p->close();
+  return ($p->ping($host)) ? 1: 0;
 }
 
 =item generate_ips()
@@ -141,6 +129,7 @@ sub generate_ips {
   my @ipparts = split(/[.]/,$1);
   return generate_parts(\@ipparts,1,$2,'');
 }
+
 
 =item generate_parts()
 
@@ -168,9 +157,9 @@ sub generate_parts {
   if($index > 4) {
     return $part;
   }
-  unless($part eq "") {
-    $part .= ".";
-  }
+
+  $part .= "." unless($part eq "");
+
   if(8*$index <= $subnet ) {
     push @lresult, generate_parts($ip,$index+1,$subnet,$part.$$ip[$index-1]);
   } else {
@@ -180,3 +169,4 @@ sub generate_parts {
   }
   return @lresult;
 }
+1;
