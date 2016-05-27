@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-use strict;
+#use strict;
 #use warnings;
 use v5.10;
 require 'ipscan.pl';

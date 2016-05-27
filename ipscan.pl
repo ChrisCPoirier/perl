@@ -102,7 +102,7 @@ Output:
 sub pingip {
   my ($host) = @_;
   $host //= "";
-  my $p = Net::Ping->new("tcp",.10);
+  my $p = Net::Ping->new("tcp",.20);
   return ($p->ping($host)) ? 1: 0;
 }
 
