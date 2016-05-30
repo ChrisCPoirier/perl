@@ -1,6 +1,8 @@
 use strict;
 use warnings;
 use File::Monitor;
+use Cwd;
+
 =head1 NAME
 autotest
 =head1 SYNOPSIS
@@ -8,8 +10,10 @@ autotest
     the test assocaited to that file. This is essentially a poor mans
     CIT(Continual Integeration Testing)
 =cut
+#set codedir to the current working directory
+my $codedir = cwd();
 
-my $codedir ='/home/chris/git-repos/perl';
+print $codedir."\n";
 
 my $monitor = File::Monitor->new();
 my @files = listFiles($codedir);
@@ -22,7 +26,7 @@ for my $file (@files) {
         my ($name, $event, $change) = @_;
         $name =~ /(\w+)\.pl$/
         and print "Running test for: $1\n" and
-        do {eval{ `perl /home/chris/git-repos/perl/test/test_$1.pl`}};
+        do {eval{ `perl $codedir/test/test_$1.pl`}};
         print "test complete.\n";
       }
   });
