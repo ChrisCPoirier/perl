@@ -25,24 +25,4 @@ ok(@resultarray[0..5] ~~ @testarray &&
   @resultarray == 256,"generate ips:complex");
 
 
-
-=comment
-my $Start = time();
-my ($good, $bad) = scan("192.168.0.0/24",10);
-
-print "********GOOD*********\n";
-print join("\n",@$good) . "\n";
-print "********BAD**********\n";
-print join("\n",@$bad) . "\n";
-print "********STATS********\n";
-my $End = time();
-my $Diff = $End - $Start;
-$Start = strftime "%H:%M:%S", localtime($Start);
-$End = strftime "%H:%M:%S", localtime($End);
-print "Start ".$Start."\n";
-print "End ".$End."\n";
-print "Diff ".$Diff."\n";
-=cut
-
-
 done_testing();
